@@ -1,0 +1,74 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - master
+      - main
+    tags:
+      - "*"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build firmware
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Cache PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio/.cache
+            ~/.platformio/packages
+            ~/.platformio/platforms
+          key: ${{ runner.os }}-platformio-${{ hashFiles('platformio.ini') }}
+          restore-keys: |
+            ${{ runner.os }}-platformio-
+
+      - name: Install PlatformIO
+        run: python -m pip install --upgrade platformio
+
+      - name: Build
+        run: pio run
+
+      - name: Package firmware
+        run: |
+          mkdir -p release
+          cp .pio/build/esp8266-1m-base/firmware.bin release/IRbaby1m.bin
+          cp .pio/build/esp8266-2m-base/firmware.bin release/IRbaby2m.bin
+          cp .pio/build/esp8266-4m-base/firmware.bin release/IRbaby4m.bin
+          cd release
+          zip -q IRbaby.zip IRbaby1m.bin IRbaby2m.bin IRbaby4m.bin
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: IRbaby-firmware
+          path: |
+            release/IRbaby1m.bin
+            release/IRbaby2m.bin
+            release/IRbaby4m.bin
+            release/IRbaby.zip
+
+      - name: Publish GitHub release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release/IRbaby1m.bin
+            release/IRbaby2m.bin
+            release/IRbaby4m.bin
+            release/IRbaby.zip

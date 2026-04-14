@@ -20,7 +20,10 @@ char *udpRecive()
     {
         /* receive incoming UDP packets */
         DEBUGF("Received %d bytes from %s, port %d\n", packetSize, UDP.remoteIP().toString().c_str(), UDP.remotePort());
-        int len = UDP.read(incomingPacket, 255);
+        if (packetSize >= UDP_PACKET_SIZE)
+            ERRORF("UDP packet truncated: %d bytes\n", packetSize);
+
+        int len = UDP.read(incomingPacket, UDP_PACKET_SIZE - 1);
         if (len > 0)
         {
             incomingPacket[len] = 0;

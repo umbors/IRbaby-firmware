@@ -9,9 +9,25 @@
 StaticJsonDocument<1024> ConfigData;
 StaticJsonDocument<1024> ACStatus;
 
+static void settingsEnsureDefaults()
+{
+    ConfigData["version"] = FIRMWARE_VERSION;
+
+    if (!ConfigData.containsKey("pin")) {
+        ConfigData["pin"]["ir_send"] = T_IR;
+        ConfigData["pin"]["ir_receive"] = R_IR;
+    } else {
+        if (!ConfigData["pin"].containsKey("ir_send"))
+            ConfigData["pin"]["ir_send"] = T_IR;
+        if (!ConfigData["pin"].containsKey("ir_receive"))
+            ConfigData["pin"]["ir_receive"] = R_IR;
+    }
+}
+
 bool settingsSave()
 {
     DEBUGLN("Save Config");
+    settingsEnsureDefaults();
     File cache = LittleFS.open("/config", "w");
     if (!cache || (serializeJson(ConfigData, cache) == 0)) {
         ERRORLN("Failed to save config file");
@@ -54,7 +70,7 @@ bool settingsLoad()
                 return ret;
             }
             INFOLN("Load config data:");
-            ConfigData["version"] = FIRMWARE_VERSION;
+            settingsEnsureDefaults();
             serializeJsonPretty(ConfigData, Serial);
             Serial.println();
         }
@@ -62,6 +78,7 @@ bool settingsLoad()
     } else {
         DEBUGLN("Don't exsit config");
     }
+    settingsEnsureDefaults();
 
     if (LittleFS.exists("/acstatus")) {
         File cache = LittleFS.open("/acstatus", "r");
@@ -91,17 +108,19 @@ void settingsClear()
 
 bool saveACStatus(String file, t_remote_ac_status status)
 {
-    bool ret = false;
     ACStatus[file]["power"] = (int)status.ac_power;
     ACStatus[file]["temperature"] = (int)status.ac_temp;
     ACStatus[file]["mode"] = (int)status.ac_mode;
     ACStatus[file]["swing"] = (int)status.ac_swing;
     ACStatus[file]["speed"] = (int)status.ac_wind_speed;
-    return ret;
+    return true;
 }
 
 t_remote_ac_status getACState(String file)
 {
+    if (!ACStatus.containsKey(file))
+        initAC(file);
+
     t_remote_ac_status status;
     int power = (int)ACStatus[file]["power"];
     int temperature = (int)ACStatus[file]["temperature"];

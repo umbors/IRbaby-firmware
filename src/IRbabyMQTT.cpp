@@ -12,8 +12,8 @@ void callback(char *topic, byte *payload, unsigned int length);
 void mqttInit()
 {
     INFOLN("MQTT Init");
-    mqttReconnect();
     mqtt_client.setCallback(callback);
+    mqttReconnect();
 }
 
 /**************************************
@@ -29,7 +29,7 @@ bool mqttReconnect()
         int port = mqtt_obj["port"];
         const char *user = mqtt_obj["user"];
         const char *password = mqtt_obj["password"];
-        if (host && port)
+        if (host && host[0] != '\0' && port > 0)
         {
             mqtt_client.setServer(host, port);
             String chip_id = String(ESP.getChipId(), HEX);
@@ -47,7 +47,6 @@ bool mqttReconnect()
         }
         INFOF("MQTT state rc = %d\n", mqtt_client.state());
     }
-    delay(1000);
     return flag;
 }
 
@@ -61,6 +60,7 @@ void callback(char *topic, byte *payload, unsigned int length)
     mqtt_msg_doc.clear();
 
     String payload_str = "";
+    payload_str.reserve(length);
     for (uint32_t i = 0; i < length; i++)
         payload_str += (char)payload[i];
     String topic_str(topic);
